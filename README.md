@@ -66,7 +66,14 @@ The script expects a JSON configuration file named `qconfig.json` in the directo
 - **Note that: You must provide either Username/Password or SessionID as creditionals**
 - **You can generate sessionIDs by `queraups -gen USERNAME PASSWORD`**
 
-### Example Usage
+## Running Commands
+
+- In first run, you should put the python file in a good directory and run it by python in terminal. The script self-installs itself as `queraups` command system-wide.
+
+- To generate a new session ID: ```queraups -gen your_username your_password```
+- To kill a session: ```queraups -kill session_id```
+- **For normal submission (with provided qconfig.json in CWD) just need to run:** ```queraups```
+
 
 ```bash
 queraups -s <session_id> -u <quera_url> -p <project_path> -z <zip_file_prefix> -t <timeout_seconds>
