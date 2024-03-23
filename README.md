@@ -73,18 +73,7 @@ The script expects a JSON configuration file named `qconfig.json` in the directo
 - To generate a new session ID: ```queraups -gen your_username your_password```
 - To kill a session: ```queraups -kill session_id```
 - **For normal submission (with provided qconfig.json in CWD) just need to run:** ```queraups```
-
-
-```bash
-queraups -s <session_id> -u <quera_url> -p <project_path> -z <zip_file_prefix> -t <timeout_seconds>
-```
-
-For Upload in "Run Sample Test Mode"
-```bash
-queraups -sts
-```
-
-Now you can use the `queraups` command everywhere after the first run of `python3 quera_upload_sweetener.py`.
+- For Upload in "Run Sample Test Mode" ```queraups -sts```
 
 ## Installation and Usage Notes
 
