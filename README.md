@@ -42,15 +42,47 @@ python quera_upload_sweetener.py
 - `-sts`: Upload in Run Sample Test Mode.
 - `--timeout` (`-t`): Timeout for waiting for judging (in seconds).
 
+### JSON Configuration File
+The script expects a JSON configuration file named `qconfig.json` in the directory where `queraups` is run. The structure of the JSON file should be as follows:
+```json
+{
+"username": "your_username",
+"password": "your_password",
+"url": "quera_exercise_url",
+"prjpath": "project_path",
+"prefix": "zip_file_prefix",
+"timeout": 60,
+"sessionid": "your_session_id"
+}
+```
+
+- `username`: Your Quera username.
+- `password`: Your Quera password.
+- `url`: URL link to the Quera exercise.
+- `prjpath`: Project path in your storage. (Parent of the src folder)
+- `prefix`: Prefix for the zip file name. (Optional)
+- `timeout`: Timeout for waiting for judging in seconds. (Optional)
+- `sessionid`: Session ID of Quera login. 
+- **Note that: You must provide either Username/Password or SessionID as creditionals**
+- **You can generate sessionIDs by `queraups -gen USERNAME PASSWORD`**
+
 ### Example Usage
 
 ```bash
 queraups -s <session_id> -u <quera_url> -p <project_path> -z <zip_file_prefix> -t <timeout_seconds>
 ```
 
-Now you can use the `queraups` command everywhere instead of `python3 quera_upload_sweetener.py`.
+For Upload in "Run Sample Test Mode"
+```bash
+queraups -sts
+```
+
+Now you can use the `queraups` command everywhere after the first run of `python3 quera_upload_sweetener.py`.
 
 ## Installation and Usage Notes
 
 1. **Installation Script**: The script includes an installation script (`check_installation()`) to symlink the main script for system-wide use and create the `queraups` command.
 2. **Usage**: Ensure you have a `qconfig.json` file in your project path with the necessary Quera login credentials.
+
+## Author
+This script was created by AHMZ on 2,3 Farvardin 1403.
