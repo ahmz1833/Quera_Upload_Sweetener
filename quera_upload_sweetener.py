@@ -114,10 +114,12 @@ def __zip_project__(folder_path, zip_path):
                 zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), folder_path))
 ########################################################################
 def __get_headers__(session):
+    session_id = session.cookies.get('session_id', domain='quera.org')
+    csrf_token = session.cookies.get('csrf_token', domain='quera.org')
     return {
-        'cookie': f"csrf_token={session.cookies.get('csrf_token', domain='quera.org')}; session_id={session.cookies.get('session_id', domain='quera.org')};",
+        'cookie': f"csrf_token={csrf_token}; session_id={session_id};",
         'origin': 'https://quera.org',
-        'x-csrftoken': session.cookies.get('csrf_token', domain='quera.org'),
+        'x-csrftoken': csrf_token,
     }
 ########################################################################
 def __send_request_with_csrf__(session, url, data={}, files=None):
@@ -125,7 +127,7 @@ def __send_request_with_csrf__(session, url, data={}, files=None):
     csrf_token_input = BeautifulSoup(session.get(url).text, 'html.parser').find('input', {'name': 'csrfmiddlewaretoken'})
     assert csrf_token_input, "Cannot get the url and find the csrfmiddlewaretoken" 
     data['csrfmiddlewaretoken'] = csrf_token_input.get('value')
-    response = session.post(url, headers=__get_headers__(session), data=data, files=files)
+    response = session.post(url, headers={'origin': 'https://quera.org'}, data=data, files=files)
     if response.status_code != 200:
         return False, response
     return True, response
@@ -155,7 +157,8 @@ def login_to_quera(sessionid=None, username=None, password=None):
         success = session.get('https://quera.org/profile/').url == 'https://quera.org/profile/'
         assert success, 'Session id has been expired or invalid!!'
     else:
-        success, response = __send_request_with_csrf__(session, 'https://quera.org/accounts/login', {'login': username, 'password': password})
+        success, response = __send_request_with_csrf__(session, 'https://quera.org/accounts/login',
+                                                       {'login': username, 'password': password})
         assert success, f'Response Code is not OK. (Code = {response.status_code})'
         assert session.cookies.get('session_id'), 'Login Failed! Please check your username and password!'
     return session
@@ -169,12 +172,14 @@ def logout_quera(session):
 def submit_file_for_problem(session, problem_url, file_path, sts):
     """ Submit a file to specified problem URL in Quera """
     assert os.path.isfile(file_path), 'The provided file does not exist.'
-    success, response = __send_request_with_csrf__(session, problem_url, {'file_type': '34', 'type': 'STS' if sts else 'JS'}, 
-                                        files={'file': open(file_path, 'rb')})
-    assert success, f'Response Code is not OK. (Code = {response.status_code})'
     submission_id = None
     trys = 3
     while not submission_id:
+        success, response = __send_request_with_csrf__(session,
+                                                       problem_url, 
+                                                       {'file_type': '34', 'type': 'STS' if sts else 'JS'},
+                                                       files={'file': open(file_path, 'rb')})
+        assert success, f'Response Code is not OK. (Code = {response.status_code})'
         # Get submission id from response
         all_rows = BeautifulSoup(response.text, 'html.parser').find_all('tr')
         for row in all_rows:
@@ -186,7 +191,6 @@ def submit_file_for_problem(session, problem_url, file_path, sts):
         elif not submission_id:
             response = session.get(response.url)
             trys -= 1
-        
     # Returns submission ID and Results page URL
     return submission_id, response.url
 ########################################################################
@@ -207,8 +211,10 @@ def wait_for_judge(session, submissions_page_url, submission_id, timeout):
 ########################################################################
 def get_detailed_result(session, submission_id, sts):
     """ Obtain the detailed result (passed testcases, etc ...) of given submission id , and Get log if STS mode """
-    response = session.post('https://quera.org/assignment/submission_action', headers=__get_headers__(session),
-                                        data={'action': 'get_judge_log' if sts else 'get_result', 'submission_id': f'{submission_id}'})
+    response = session.post('https://quera.org/assignment/submission_action',
+                            headers=__get_headers__(session),
+                            data={'action': 'get_judge_log' if sts else 'get_result',
+                                  'submission_id': f'{submission_id}'})
     assert response.status_code == 200, f'Response Code is not OK. (Code = {response.status_code})'
     assert response.json()['success'] is True, 'Not successful ...'
     return response.json()
