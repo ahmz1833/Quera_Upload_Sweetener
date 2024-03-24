@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 ########################################################################
-# Quera Upload Sweetener v1.3 (Zip project + Upload to Quera + Show detailed judge result)
+# Quera Upload Sweetener v1.4 (Zip project + Upload to Quera + Show detailed judge result)
 # By AHMZ - 2,3 Farvardin 1403
 # if you don't have dependencies, run command below:
 # pip install requests beautifulsoup4
@@ -40,18 +41,15 @@ def check_installation():
         scontent = f'@echo off\npython "{mabspath}" %*'
         sfpath = os.path.join(os.path.split(mabspath)[0], scname)
         linkcmd = f'cmd /c mklink {ppath} "{sfpath}" >nul 2>&1'
+        # create the bash/batch file
+        if not os.path.isfile(sfpath):
+            with open(sfpath, 'w') as f: f.write(scontent)
     else:
         scname = 'queraups'
         ppath = f'/usr/local/bin/{scname}'
         mabspath = os.path.abspath(sys.argv[0])
-        scontent = f'#!/bin/bash\npython3 "{mabspath}" "$@"'
-        sfpath = os.path.join(os.path.split(mabspath)[0], scname)
-        linkcmd = f'sudo ln -sT "{sfpath}" {ppath}'
+        linkcmd = f'sudo ln -sT "{mabspath}" {ppath}'
 
-    # create the bash/batch file
-    if not os.path.isfile(sfpath):
-        with open(sfpath, 'w') as f: f.write(scontent)
-    
     # create symlink in system path
     if not os.path.islink(ppath):
         if sys.platform == 'win32' and not ctypes.windll.shell32.IsUserAnAdmin():
@@ -115,14 +113,19 @@ def __zip_project__(folder_path, zip_path):
             for file in files:
                 zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), folder_path))
 ########################################################################
-def __send_request_with_csrf__(session, url, data={}, *, cookies=None, files=None):
+def __get_headers__(session):
+    return {
+        'cookie': f"csrf_token={session.cookies.get('csrf_token')}; session_id={session.cookies.get('session_id')};",
+        'origin': 'https://quera.org',
+        'x-csrftoken': session.cookies.get('csrf_token'),
+    }
+########################################################################
+def __send_request_with_csrf__(session, url, data={}, files=None):
     """ Send HTTP post request with CSRF token (fetched by get request) """
     csrf_token_input = BeautifulSoup(session.get(url).text, 'html.parser').find('input', {'name': 'csrfmiddlewaretoken'})
-    if not csrf_token_input:
-        return False, None
-    csrfmiddlewaretoken = csrf_token_input.get('value')
-    data['csrfmiddlewaretoken'] = csrfmiddlewaretoken
-    response = session.post(url, headers={'origin': 'https://quera.org'}, data=data, cookies=cookies, files=files)
+    assert csrf_token_input, "Cannot get the url and find the csrfmiddlewaretoken" 
+    data['csrfmiddlewaretoken'] = csrf_token_input.get('value')
+    response = session.post(url, headers=__get_headers__(session), data=data, files=files)
     if response.status_code != 200:
         return False, response
     return True, response
@@ -169,14 +172,21 @@ def submit_file_for_problem(session, problem_url, file_path, sts):
     success, response = __send_request_with_csrf__(session, problem_url, {'file_type': '34', 'type': 'STS' if sts else 'JS'}, 
                                         files={'file': open(file_path, 'rb')})
     assert success, f'Response Code is not OK. (Code = {response.status_code})'
-    # Get submission id from response
-    all_rows = BeautifulSoup(response.text, 'html.parser').find_all('tr')
     submission_id = None
-    for row in all_rows:
-        if 'data-submission_id' in row.attrs:
-            submission_id = int(row['data-submission_id'])
-            break
-    assert submission_id, "Can't find the submission id."
+    trys = 3
+    while not submission_id:
+        # Get submission id from response
+        all_rows = BeautifulSoup(response.text, 'html.parser').find_all('tr')
+        for row in all_rows:
+            if 'data-submission_id' in row.attrs:
+                submission_id = int(row['data-submission_id'])
+                break
+        if trys <= 1:
+            assert submission_id, "Can't find the submission id."
+        elif not submission_id:
+            response = session.get(response.url)
+            trys -= 1
+        
     # Returns submission ID and Results page URL
     return submission_id, response.url
 ########################################################################
@@ -197,12 +207,7 @@ def wait_for_judge(session, submissions_page_url, submission_id, timeout):
 ########################################################################
 def get_detailed_result(session, submission_id, sts):
     """ Obtain the detailed result (passed testcases, etc ...) of given submission id , and Get log if STS mode """
-    headers = {
-        'cookie': f"csrf_token={session.cookies.get('csrf_token')}; session_id={session.cookies.get('session_id')};",
-        'origin': 'https://quera.org',
-        'x-csrftoken': session.cookies.get('csrf_token'),
-    }
-    response = session.post('https://quera.org/assignment/submission_action', headers=headers,
+    response = session.post('https://quera.org/assignment/submission_action', headers=__get_headers__(session),
                                         data={'action': 'get_judge_log' if sts else 'get_result', 'submission_id': f'{submission_id}'})
     assert response.status_code == 200, f'Response Code is not OK. (Code = {response.status_code})'
     assert response.json()['success'] is True, 'Not successful ...'

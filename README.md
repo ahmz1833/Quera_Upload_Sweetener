@@ -1,4 +1,4 @@
-# Quera Upload Sweetener v1.3
+# Quera Upload Sweetener v1.4
 
 Automate the process of zipping your project, uploading it to Quera, and monitoring the judge results, all from the command line.
 
@@ -43,7 +43,7 @@ python quera_upload_sweetener.py
 - `--timeout` (`-t`): Timeout for waiting for judging (in seconds).
 
 ### JSON Configuration File
-The script expects a JSON configuration file named `qconfig.json` in the directory where `queraups` is run. The structure of the JSON file should be as follows:
+The script expects a JSON configuration file named `qconfig.json` in the directory where `queraups` is run. The structure of the JSON file is shown as follows:
 ```json
 {
 "username": "your_username",
