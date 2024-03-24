@@ -18,6 +18,7 @@ import zipfile
 ########################################################################
 ansi = {
     'bold': '\033[1m',
+    'dim': '\033[2m',
     'green': '\033[32m',
     'lgreen': '\033[92m',
     'red': '\033[31m',
@@ -115,7 +116,11 @@ def __zip_project__(folder_path, zip_path):
 ########################################################################
 def __get_headers__(session):
     session_id = session.cookies.get('session_id', domain='quera.org')
+    if not session_id: session_id = session.cookies.get('session_id', domain='.quera.org')
+    if not session_id: session_id = session.cookies.get('session_id')
     csrf_token = session.cookies.get('csrf_token', domain='quera.org')
+    if not session_id: csrf_token = session.cookies.get('csrf_token', domain='.quera.org')
+    if not session_id: csrf_token = session.cookies.get('csrf_token')
     return {
         'cookie': f"csrf_token={csrf_token}; session_id={session_id};",
         'origin': 'https://quera.org',
@@ -125,7 +130,7 @@ def __get_headers__(session):
 def __send_request_with_csrf__(session, url, data={}, files=None):
     """ Send HTTP post request with CSRF token (fetched by get request) """
     csrf_token_input = BeautifulSoup(session.get(url).text, 'html.parser').find('input', {'name': 'csrfmiddlewaretoken'})
-    assert csrf_token_input, "Cannot get the url and find the csrfmiddlewaretoken" 
+    assert csrf_token_input, "Cannot find the csrfmiddlewaretoken!" 
     data['csrfmiddlewaretoken'] = csrf_token_input.get('value')
     response = session.post(url, headers={'origin': 'https://quera.org'}, data=data, files=files)
     if response.status_code != 200:
@@ -211,11 +216,15 @@ def wait_for_judge(session, submissions_page_url, submission_id, timeout):
 ########################################################################
 def get_detailed_result(session, submission_id, sts):
     """ Obtain the detailed result (passed testcases, etc ...) of given submission id , and Get log if STS mode """
-    response = session.post('https://quera.org/assignment/submission_action',
-                            headers=__get_headers__(session),
-                            data={'action': 'get_judge_log' if sts else 'get_result',
-                                  'submission_id': f'{submission_id}'})
-    assert response.status_code == 200, f'Response Code is not OK. (Code = {response.status_code})'
+    trys = 3
+    while True:
+        response = session.post('https://quera.org/assignment/submission_action',
+                                headers=__get_headers__(session),
+                                data={'action': 'get_judge_log' if sts else 'get_result',
+                                    'submission_id': f'{submission_id}'})
+        if response.status_code == 200: break
+        elif trys <= 1: raise AssertionError(f'Response Code is not OK. (Code = {response.status_code})')
+        else: trys -= 1
     assert response.json()['success'] is True, 'Not successful ...'
     return response.json()
 ########################################################################
@@ -261,7 +270,7 @@ def main(args):
         if args.sts: print(ansi['lmagenta'] + 'Run Sample Test Mode' + ansi['reset'])
         print('Submit stage:', end=' ', flush=True)
         submission_id, submissions_url = submit_file_for_problem(session, args.url, zip_location, args.sts)
-        print(f"{ansi['lgreen']}Successful{ansi['reset']}")
+        print(f"{ansi['lgreen']}Successful with id {ansi['bold']}{submission_id}{ansi['reset']}")
 
         # Wait for quera judge result
         print(f"\n{ansi['lyellow']}Waiting For Quera Judge ....{ansi['reset']}")
