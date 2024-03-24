@@ -115,9 +115,9 @@ def __zip_project__(folder_path, zip_path):
 ########################################################################
 def __get_headers__(session):
     return {
-        'cookie': f"csrf_token={session.cookies.get('csrf_token')}; session_id={session.cookies.get('session_id')};",
+        'cookie': f"csrf_token={session.cookies.get('csrf_token', domain='quera.org')}; session_id={session.cookies.get('session_id', domain='quera.org')};",
         'origin': 'https://quera.org',
-        'x-csrftoken': session.cookies.get('csrf_token'),
+        'x-csrftoken': session.cookies.get('csrf_token', domain='quera.org'),
     }
 ########################################################################
 def __send_request_with_csrf__(session, url, data={}, files=None):
